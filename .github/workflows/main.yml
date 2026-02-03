@@ -15,9 +15,15 @@ jobs:
           username: ${{ secrets.NAS_USERNAME }}
           password: ${{ secrets.NAS_PASSWORD }}
           port: ${{ secrets.NAS_PORT }}
-script: |
+          script: |
+            # 1. 프로젝트 폴더로 이동
             cd /volume1/web/coaches_meet
+            
+            # 2. 최신 코드 가져오기
             git pull origin main
-            npm install
-            # sudo 없이도 실행 가능하도록 pm2 경로를 직접 지정하거나 권한 확인
-            /usr/local/lib/node_modules/pm2/bin/pm2 restart coaches_meet || sudo -S /usr/local/lib/node_modules/pm2/bin/pm2 restart coaches_meet <<< "${{ secrets.NAS_PASSWORD }}"
+            
+            # 3. npm 경로 직접 지정해서 실행 (보통 시놀로지 경로는 이래)
+            /usr/local/bin/npm install
+            
+            # 4. PM2도 경로 직접 지정 + 비번 강제 주입해서 재시작
+            echo "${{ secrets.NAS_PASSWORD }}" | sudo -S /usr/local/lib/node_modules/pm2/bin/pm2 restart coaches_meet
