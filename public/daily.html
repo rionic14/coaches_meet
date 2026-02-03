@@ -266,5 +266,35 @@ if (mentionGroup.length === 0) {
             // 페이지 열리자마자 오늘 데이터 가져오기
             fetchDaily();
     </script>
+
+<script>
+    // 페이지 로드 시 즉시 실행하도록 변경
+    window.onload = async () => {
+        try {
+            // 1. 서버에서 오늘 날짜 받아오기
+            const res = await fetch('/get-today');
+            const data = await res.json();
+            
+            // 2. 인풋 박스에 날짜 박기
+            document.getElementById('searchDate').value = data.today;
+            
+            // 3. 그 날짜로 데이터 조회 시작
+            fetchDaily();
+        } catch (e) {
+            console.error("날짜 로드 실패:", e);
+            // 실패 시 대비용 로컬 시간
+            const localToday = new Date().toISOString().substring(0, 10);
+            document.getElementById('searchDate').value = localToday;
+            fetchDaily();
+        }
+    };
+
+    async function fetchDaily() {
+        // (이하 기존 fetchDaily 함수 내용은 그대로 두면 돼!)
+        const date = document.getElementById('searchDate').value;
+        // ... 생략 ...
+    }
+</script>
+
   </body>
 </html>

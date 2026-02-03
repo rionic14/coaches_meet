@@ -79,6 +79,24 @@ app.get('/get-staff-summary', async (req, res) => {
     }
 });
 
+// [기능 5] 오늘 날짜 가져오기 (한국 시간 기준)
+app.get('/get-today', (req, res) => {
+    const now = new Date();
+    // 한국 시간(GMT+9) 계산
+    const kstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const today = kstDate.toISOString().split('T')[0];
+    res.json({ today: today });
+});
+
+// 한국 시간 기준으로 오늘 날짜 반환
+app.get('/get-today', (req, res) => {
+    const now = new Date();
+    const kstOffset = 9 * 60 * 60 * 1000;
+    const kstDate = new Date(now.getTime() + kstOffset);
+    const today = kstDate.toISOString().split('T')[0];
+    res.json({ today: today });
+});
+
 app.listen(3000, () => {
     console.log("-----------------------------------------");
     console.log("🚀 서버 가동 중: http://localhost:3000");
