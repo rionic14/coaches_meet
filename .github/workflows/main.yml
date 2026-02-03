@@ -15,8 +15,9 @@ jobs:
           username: ${{ secrets.NAS_USERNAME }}
           password: ${{ secrets.NAS_PASSWORD }}
           port: ${{ secrets.NAS_PORT }}
-          script: |
+script: |
             cd /volume1/web/coaches_meet
             git pull origin main
             npm install
-            sudo /usr/local/lib/node_modules/pm2/bin/pm2 restart coaches_meet
+            # sudo 없이도 실행 가능하도록 pm2 경로를 직접 지정하거나 권한 확인
+            /usr/local/lib/node_modules/pm2/bin/pm2 restart coaches_meet || sudo -S /usr/local/lib/node_modules/pm2/bin/pm2 restart coaches_meet <<< "${{ secrets.NAS_PASSWORD }}"
