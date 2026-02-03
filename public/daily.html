@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>코칭스태프 회의록 조회</title>
+    <style>
+      @font-face {
+        font-family: "Batang";
+        src: url("/fonts/batang.ttf");
+      }
+
+      /* 1. 모든 요소의 너비 계산 방식을 테두리 포함으로 통일 */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Batang', 'AppleMyungjo', '바탕', serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px;
+}
+
+/* 2. 모든 박스의 최대 너비를 동일하게 맞춤 (예: 700px) */
+.header-info, 
+.summary-box, 
+.meeting-table {
+    width: 100%;
+    max-width: 700px; /* 여기 숫자를 통일하면 양옆이 딱 맞아 */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* 3. 요약 박스 설정 (표 테두리와 두께를 맞춤) */
+.summary-box {
+    font-size: 11px;
+    line-height: 1.6;
+    margin-bottom: -1px; /* 표 테두리와 겹치게 해서 선이 굵어지는 것 방지 */
+    border: 1px solid #000;
+    padding: 10px;
+    text-align: left;
+}
+
+/* 4. 표 설정 */
+.meeting-table {
+    border-collapse: collapse;
+    font-size: 11px;
+}
+
+.meeting-table th, 
+.meeting-table td {
+    border: 1px solid #000;
+    padding: 10px;
+}
+      h1 {
+        font-size: 16px;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .header-info {
+        width: 100%;
+        max-width: 700px;
+        font-size: 11px;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .author-section {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .author-input {
+        font-family: "Batang";
+        font-size: 11px;
+        border: 1px solid #ccc;
+        width: 80px;
+        padding: 2px;
+      }
+
+      table {
+        width: 100%;
+        max-width: 700px;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        border: 1px solid #000;
+        padding: 10px;
+      }
+
+      .bg-gray {
+        background-color: #f2f2f2;
+        text-align: center;
+        font-weight: bold;
+      }
+
+      .mention-box {
+        white-space: pre-wrap; /* 줄바꿈 적용 */
+        vertical-align: top;
+        min-height: 50px;
+      }
+
+      .no-print {
+        margin-bottom: 20px;
+      }
+
+      @media print {
+    /* 버튼, 날짜 선택창 등 인쇄 안 할 부분 숨기기 */
+    .no-print {
+        display: none !important;
+    }
+
+    /* 배경색이 인쇄되도록 설정 */
+    body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        padding: 0; /* 인쇄 시 여백 제거 */
+    }
+
+    /* 표가 페이지 넘길 때 매끄럽게 잘리도록 */
+    table {
+        page-break-inside: auto;
+    }
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+
+    /* 인쇄 시 전체 너비를 꽉 채우기 */
+    .header-info, .summary-box, table {
+        max-width: 100% !important;
+        width: 100%;
+    }
+}
+    </style>
+  </head>
+  <body>
+    <div class="no-print">
+      날짜 선택: <input type="date" id="searchDate" onchange="fetchDaily()" />
+      <a
+        href="index.html"
+        style="margin-left: 20px; font-size: 11px; color: blue"
+        >[기록하러 가기]</a
+      >
+    </div>
+
+    <h1>코칭스탭 일일 회의 일지</h1>
+
+    <div class="header-info">
+      <div class="author-section">
+        작성자: <input type="text" class="author-input" value="오리온 프로" />
+      </div>
+      <div id="displayDate">날짜:</div>
+    </div>
+
+    <div
+      class="summary-box"
+      id="staffSummary"
+      style="
+        width: 100%;
+        max-width: 700px;
+        font-size: 11px;
+        line-height: 1.6;
+        margin-bottom: 15px;
+        border: 1px solid #000;
+        padding: 10px;
+      "
+    >
+      <div id="totalCount">• 총( )명</div>
+      <div id="coachingStaff">- 코칭스탭:</div>
+      <div id="fieldStaff">- 현장스탭:</div>
+    </div>
+
+    <table>
+      <thead>
+        <tr class="bg-gray">
+          <th style="width: 20%">항목</th>
+          <th style="width: 80%">내용</th>
+        </tr>
+      </thead>
+      <tbody id="resultBody"></tbody>
+    </table>
+
+ <script>
+    // 1. 날짜 초기 세팅
+    const today = new Date().toISOString().substring(0, 10);
+    document.getElementById('searchDate').value = today;
+
+    async function fetchDaily() {
+        const date = document.getElementById('searchDate').value;
+        document.getElementById('displayDate').innerText = "날짜: " + date;
+
+        const tbody = document.getElementById('resultBody');
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;">데이터를 불러오는 중...</td></tr>';
+
+        try {
+            // [A] 회의록 본문 가져오기
+            const res = await fetch(`/load-meeting?date=${date}`);
+            const data = await res.json();
+
+            // [B] 스태프 요약 정보 가져오기 (컬럼명: position1)
+      try {
+    const staffRes = await fetch('/get-staff-summary');
+    const staffData = await staffRes.json();
+
+    // 1. 오늘 회의에 참석한 사람들의 이름만 추출
+    const attendeeNames = data.map(item => item.name);
+
+    // 2. 전체 스태프 중 '오늘 참석한 사람'만 필터링
+    const presentStaff = staffData.filter(s => attendeeNames.includes(s.name));
+
+    document.getElementById('totalCount').innerText = `• 총(${data.length})명`;
+
+    // 3. 참석자 중에서 코칭/현장 분류
+    const coachingList = presentStaff
+        .filter(s => s.position1 >= 10 && s.position1 <= 13)
+        .map(s => `${s.name} ${s.position_ko}`)
+        .join(', ');
+
+    const fieldList = presentStaff
+        .filter(s => s.position1 >= 20 && s.position1 <= 30)
+        .map(s => `${s.name} ${s.position_ko}`)
+        .join(', ');
+
+    document.getElementById('coachingStaff').innerText = `- 코칭스탭: ${coachingList || '없음'}`;
+    document.getElementById('fieldStaff').innerText = `- 현장스탭: ${fieldList || '없음'}`;
+} catch (staffErr) {
+    console.error("요약 정보 로드 실패:", staffErr);
+}
+
+ // 3. 표 그리기 (멘션이 있는 사람만!)
+tbody.innerHTML = '';
+
+// 멘션이 있는 사람만 골라내기
+const mentionGroup = data.filter(item => item.mention && item.mention.trim() !== '');
+
+if (mentionGroup.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 20px;">발언 내용이 기록된 인원이 없습니다.</td></tr>';
+} else {
+    mentionGroup.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="bg-gray">${item.name}<br>${item.role}</td>
+            <td class="mention-box">${item.mention}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+        } catch (e) {
+            console.error("전체 로드 에러:", e);
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:red; padding: 20px;">데이터를 불러오지 못했습니다. 서버 상태를 확인하세요.</td></tr>';
+        }
+    }
+
+    // 페이지 로드 시 즉시 실행
+    fetchDaily();
+            // 페이지 열리자마자 오늘 데이터 가져오기
+            fetchDaily();
+    </script>
+  </body>
+</html>

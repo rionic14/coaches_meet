@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>코칭스태프 회의록</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        input, textarea { width: 90%; padding: 5px; }
+        .btn-box { margin-top: 10px; display: flex; gap: 10px; }
+    </style>
+</head>
+<body>
+    
+    
+    
+    <div class="container">
+        <h1>📝 회의록 작성</h1>
+        날짜: <input type="date" id="meetingDate">
+        
+        <table id="meetingTable">
+            <thead>
+                <tr>
+                    <th>성명</th>
+                    <th>직책</th>
+                    <th>멘션 (내용)</th>
+                    <th>관리</th> </tr>
+                </tr>
+            </thead>
+            <tbody id="attendeeBody">
+                </tbody>
+        </table>
+
+        <div class="btn-box">
+            <button onclick="addRow()">➕ 줄 추가</button>
+            <button onclick="saveAll()" style="background: #28a745; color: white;">💾 DB 저장</button>
+        </div>
+
+        <div style="text-align: right; margin-bottom: 10px;">
+    <a href="daily.html" style="font-size: 12px; font-weight: bold; color: green;">📅 오늘 회의록 결과보기</a>
+</div>
+    </div>
+
+    <script>
+// 1. 페이지 로드 시 실행
+window.onload = async function() {
+    // 오늘 날짜 세팅
+    const today = new Date().toISOString().substring(0, 10);
+    document.getElementById('meetingDate').value = today;
+
+    // 어제 날짜 계산 (오늘 - 1일)
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const yesterday = d.toISOString().substring(0, 10);
+
+    console.log("어제 기록 불러오기 시도:", yesterday);
+
+    try {
+        // 어제 데이터를 가져옴 (이미 서버의 load-meeting은 log_num 순으로 줌)
+        const res = await fetch(`/load-meeting?date=${yesterday}`);
+        const data = await res.json();
+
+        const tbody = document.getElementById('attendeeBody');
+        tbody.innerHTML = ''; // 기본 칸 비우기
+
+        if (data && data.length > 0) {
+            // 어제 명단이 있으면 순서대로 이름/직책 채우기
+           // window.onload 내부의 data.forEach 부분
+data.forEach(item => {
+    const row = tbody.insertRow();
+    row.innerHTML = `
+        <td><input type="text" class="nameInput" value="${item.name}" onblur="findRole(this)"></td>
+        <td><input type="text" class="roleInput" value="${item.role}" readonly style="background:#f9f9f9"></td>
+        <td><textarea class="mentionInput" placeholder="오늘의 내용을 입력하세요"></textarea></td>
+        <td>
+            <button onclick="addRow(this)">➕</button>
+            <button onclick="deleteRow(this)" style="color:red">❌</button>
+        </td>
+    `;
+});
+            console.log("✅ 어제 명단 로드 완료!");
+        } else {
+            // 어제 기록이 없으면 그냥 빈 줄 하나 생성
+            addRow();
+        }
+    } catch (e) {
+        console.error("어제 데이터 로드 중 에러:", e);
+        addRow(); // 에러 나면 빈 줄이라도 하나 띄워줌
+    }
+};
+
+        // 날짜 기본값
+        document.getElementById('meetingDate').value = new Date().toISOString().substring(0, 10);
+
+        // 줄 추가
+        // 1. 줄 추가 함수 (수정: index 파라미터 추가)
+function addRow(el = null) {
+    const tbody = document.getElementById('attendeeBody');
+    let newRow;
+
+    if (el) {
+        // [중간 추가] 버튼을 누른 위치 바로 아래에 삽입
+        const currentRow = el.parentElement.parentElement;
+        newRow = tbody.insertRow(currentRow.rowIndex); // 현재 줄 번호에 삽입
+    } else {
+        // [그냥 추가] 맨 아래에 삽입
+        newRow = tbody.insertRow();
+    }
+
+    newRow.innerHTML = `
+        <td><input type="text" class="nameInput" onblur="findRole(this)"></td>
+        <td><input type="text" class="roleInput" readonly style="background:#f9f9f9"></td>
+        <td><textarea class="mentionInput"></textarea></td>
+        <td>
+            <button onclick="addRow(this)">➕</button>
+            <button onclick="deleteRow(this)" style="color:red">❌</button>
+        </td>
+    `;
+}
+
+// 2. 줄 삭제 함수
+function deleteRow(el) {
+    if (confirm("이 줄을 삭제할까?")) {
+        const row = el.parentElement.parentElement;
+        row.remove();
+    }
+}
+
+        // 직책 찾기
+        async function findRole(input) {
+            if (!input.value) return;
+            const row = input.parentElement.parentElement;
+            try {
+                const res = await fetch(`/get-role?name=${encodeURIComponent(input.value)}`);
+                const data = await res.json();
+                row.querySelector('.roleInput').value = data.role;
+            } catch (e) {
+                console.error("직책 로드 실패:", e);
+            }
+        }
+
+        // 저장하기
+        async function saveAll() {
+            const date = document.getElementById('meetingDate').value;
+            const rows = document.querySelectorAll('#attendeeBody tr');
+            const attendees = [];
+
+            rows.forEach(row => {
+                const name = row.querySelector('.nameInput').value;
+                const role = row.querySelector('.roleInput').value;
+                const mention = row.querySelector('.mentionInput').value;
+                if (name) attendees.push({ name, role, mention });
+            });
+
+            if (attendees.length === 0) return alert("데이터를 입력해줘!");
+
+            try {
+                const res = await fetch('/save-meeting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ date, attendees })
+                });
+                const result = await res.json();
+                alert(result.message || "에러 발생: " + result.error);
+            } catch (e) {
+                alert("서버와 연결할 수 없어! 터미널 확인해봐.");
+            }
+        }
+
+        // 시작하자마자 한 줄 만들기
+        addRow();
+    </script>
+</body>
+</html>
